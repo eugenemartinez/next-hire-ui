@@ -1,15 +1,16 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { Toaster } from 'sonner' // Import Sonner's Toaster
-import MainLayout from './components/layout/MainLayout'
-import ModalProvider from './components/providers/ModalProvider' // Import the ModalProvider component
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import MainLayout from './components/layout/MainLayout';
+import ModalProvider from './components/providers/ModalProvider';
+import ScrollBehaviorManager from './components/utils/ScrollBehaviorManager'; // <<<< IMPORT
 
 // Import actual page components
-import HomePage from './pages/HomePage'
-import JobsPage from './pages/JobsPage'
-import JobDetailsPage from './pages/JobDetailsPage'
-import AddJobPage from './pages/AddJobPage'
-import EditJobPage from './pages/EditJobPage'
-import SavedJobsPage from './pages/SavedJobsPage'
+import HomePage from './pages/HomePage';
+import JobsPage from './pages/JobsPage';
+import JobDetailsPage from './pages/JobDetailsPage';
+import AddJobPage from './pages/AddJobPage';
+import EditJobPage from './pages/EditJobPage';
+import SavedJobsPage from './pages/SavedJobsPage';
 
 // 404 page
 const NotFoundPage = () => (
@@ -18,12 +19,13 @@ const NotFoundPage = () => (
     <p className="text-muted-foreground mb-6">The page you're looking for doesn't exist or has been moved.</p>
     <a href="/" className="text-primary hover:underline">Back to Home</a>
   </div>
-)
+);
 
 function App() {
   return (
     <>
       <Router>
+        <ScrollBehaviorManager /> {/* <<<< ADD THE COMPONENT HERE */}
         <Routes>
           <Route path="/" element={<MainLayout />}>
             <Route index element={<HomePage />} />
@@ -50,9 +52,9 @@ function App() {
         }}
       />
     </>
-  )
+  );
 }
 
-export default App
+export default App;
 
 

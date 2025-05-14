@@ -294,6 +294,55 @@ const JobsPage = () => {
     setJobsPage(1); // Reset to first page
   };
   
+  // Effect 1: Sync URL to Store
+  // This runs when searchParams change (e.g., navigation from another page, or direct URL change)
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    const urlTags = searchParams.get('tags')?.split(',').filter(Boolean) || [];
+    const urlJobType = searchParams.get('job_type') || '';
+    const urlSortBy = searchParams.get('sort_by') || 'updated_at';
+    const urlSortOrder = (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc';
+
+    const salaryMinStr = searchParams.get('salary_min');
+    const urlSalaryMin = salaryMinStr ? parseInt(salaryMinStr, 10) : undefined;
+
+    const salaryMaxStr = searchParams.get('salary_max');
+    const urlSalaryMax = salaryMaxStr ? parseInt(salaryMaxStr, 10) : undefined;
+    
+    const urlSalaryCurrency = searchParams.get('salary_currency') || undefined;
+    const urlPage = parseInt(searchParams.get('page') || '1', 10);
+
+    // Get a snapshot of the current store state for comparison
+    const currentStoreState = useUserPreferences.getState();
+
+    const primaryFiltersChanged =
+      urlSearch !== currentStoreState.jobsSearch ||
+      JSON.stringify(urlTags) !== JSON.stringify(currentStoreState.jobsFilters.tags) ||
+      urlJobType !== currentStoreState.jobsFilters.jobType ||
+      urlSalaryMin !== currentStoreState.jobsFilters.salaryMin || // Comparing number | undefined with number | undefined
+      urlSalaryMax !== currentStoreState.jobsFilters.salaryMax || // Comparing number | undefined with number | undefined
+      urlSalaryCurrency !== currentStoreState.jobsFilters.salaryCurrency;
+
+    // Update store with values from URL
+    setJobsSearch(urlSearch); 
+    setJobsFilters({         
+      tags: urlTags,
+      jobType: urlJobType,
+      sortBy: urlSortBy,
+      sortOrder: urlSortOrder,
+      salaryMin: Number.isNaN(urlSalaryMin) ? undefined : urlSalaryMin, // Handle NaN from parseInt
+      salaryMax: Number.isNaN(urlSalaryMax) ? undefined : urlSalaryMax, // Handle NaN from parseInt
+      salaryCurrency: urlSalaryCurrency,
+    });
+
+    if (primaryFiltersChanged) {
+      setJobsPage(1); 
+    } else {
+      setJobsPage(urlPage); 
+    }
+
+  }, [searchParams, setJobsSearch, setJobsPage, setJobsFilters]); // Keep setters in deps as they are stable
+
   return (
     <motion.div // Optional: Animate the whole page container on initial load
       initial="hidden"
@@ -665,7 +714,10 @@ const JobsPage = () => {
                 <Button
                   variant="outline"
                   size="sm" // Consistent button sizing
-                  onClick={() => setJobsPage(Math.max(1, jobsPage - 1))}
+                  onClick={() => { // <<<< MODIFY HERE
+                    setJobsPage(Math.max(1, jobsPage - 1));
+                    window.scrollTo(0, 0); // <<<< ADD THIS LINE
+                  }}
                   disabled={jobsPage === 1}
                   aria-label="Previous page"
                 >
@@ -675,52 +727,51 @@ const JobsPage = () => {
                 
                 {(() => {
                   const totalPages = Math.ceil((data?.total || 0) / (data?.limit || 10));
-                  
-                  // This is where you'd implement or call a helper function
-                  // to get the array of page numbers/ellipsis to display.
-                  // For example: getPageNumbersToDisplay(jobsPage, totalPages, 1); 
-                  // (1 neighbour on each side of current page)
-                  //
-                  // For simplicity in this example, let's imagine a basic array generation.
-                  // A real implementation would be more robust.
                   const pageNumbersToDisplay: (number | string)[] = [];
                   const pageNeighbours = 1; // Number of pages to show on each side of current
 
-                  // Add first page
-                  pageNumbersToDisplay.push(1);
+                  if (totalPages <= 1) {
+                      if (totalPages === 1) {
+                          pageNumbersToDisplay.push(1);
+                      }
+                  } else {
+                      // Always add the first page
+                      pageNumbersToDisplay.push(1);
 
-                  // Add left ellipsis if needed
-                  if (jobsPage > pageNeighbours + 2 && totalPages > (pageNeighbours * 2) + 3) {
-                    pageNumbersToDisplay.push('...');
-                  }
+                      // Determine the range of context pages (around current page)
+                      // These pages are between the first and last page.
+                      const startPageContext = Math.max(2, jobsPage - pageNeighbours);
+                      const endPageContext = Math.min(totalPages - 1, jobsPage + pageNeighbours);
 
-                  // Add pages around current
-                  const startPage = Math.max(2, jobsPage - pageNeighbours);
-                  const endPage = Math.min(totalPages - 1, jobsPage + pageNeighbours);
-                  for (let i = startPage; i <= endPage; i++) {
-                    if (!pageNumbersToDisplay.includes(i)) {
-                      pageNumbersToDisplay.push(i);
-                    }
+                      // Add left ellipsis if there's a gap between page 1 and the start of context pages
+                      if (startPageContext > 2) {
+                          pageNumbersToDisplay.push('...');
+                      }
+
+                      // Add context pages (pages around the current page)
+                      for (let i = startPageContext; i <= endPageContext; i++) {
+                          // Ensure not to add duplicates, though less likely with pageNeighbours=1
+                          if (!pageNumbersToDisplay.includes(i)) {
+                              pageNumbersToDisplay.push(i);
+                          }
+                      }
+
+                      // Add right ellipsis if there's a gap between the end of context pages and the last page
+                      if (endPageContext < totalPages - 1) {
+                          pageNumbersToDisplay.push('...');
+                      }
+
+                      // Add last page (if it's not page 1 and not already included)
+                      // The context loop does not add totalPages.
+                      if (!pageNumbersToDisplay.includes(totalPages)) {
+                          pageNumbersToDisplay.push(totalPages);
+                      }
                   }
                   
-                  // Add right ellipsis if needed
-                  if (jobsPage < totalPages - pageNeighbours - 1 && totalPages > (pageNeighbours * 2) + 3) {
-                     // Ensure no duplicate '...' if endPage was already totalPages - 1
-                    if (pageNumbersToDisplay[pageNumbersToDisplay.length -1] !== totalPages -1) {
-                        pageNumbersToDisplay.push('...');
-                    }
-                  }
-                  
-                  // Add last page if not already included
-                  if (totalPages > 1 && !pageNumbersToDisplay.includes(totalPages)) {
-                    pageNumbersToDisplay.push(totalPages);
-                  }
-                  
-                  // Filter out consecutive '...' which might happen with simple logic
+                  // Filter out consecutive '...' which might happen with simple logic (your existing filter)
                   const finalPages = pageNumbersToDisplay.filter((item, index, arr) => {
                       return item !== '...' || (item === '...' && arr[index-1] !== '...');
                   });
-
 
                   return finalPages.map((page, index) => (
                     typeof page === 'number' ? (
@@ -729,7 +780,10 @@ const JobsPage = () => {
                         variant={jobsPage === page ? 'primary' : 'outline'}
                         size="sm" // Consistent button sizing
                         className="w-9 h-9 p-0 sm:w-10 sm:h-10" // Fixed size for page numbers
-                        onClick={() => setJobsPage(page)}
+                        onClick={() => { // <<<< MODIFY HERE
+                          setJobsPage(page);
+                          window.scrollTo(0, 0); // <<<< ADD THIS LINE
+                        }}
                         aria-label={`Go to page ${page}`}
                         aria-current={jobsPage === page ? 'page' : undefined}
                       >
@@ -750,7 +804,10 @@ const JobsPage = () => {
                 <Button
                   variant="outline" 
                   size="sm" // Consistent button sizing
-                  onClick={() => setJobsPage(Math.min(Math.ceil((data?.total || 0) / (data?.limit || 10)), jobsPage + 1))}
+                  onClick={() => { // <<<< MODIFY HERE
+                    setJobsPage(Math.min(Math.ceil((data?.total || 0) / (data?.limit || 10)), jobsPage + 1));
+                    window.scrollTo(0, 0); // <<<< ADD THIS LINE
+                  }}
                   disabled={jobsPage >= Math.ceil((data?.total || 0) / (data?.limit || 10))}
                   aria-label="Next page"
                 >
