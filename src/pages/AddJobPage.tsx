@@ -153,10 +153,22 @@ const AddJobPage = () => {
       methods.reset();
     },
     onError: (error) => {
-      if (isAxiosError(error) && error.response?.status === 429) {
-        toast.error('You have exceeded the daily limit for posting jobs. Please try again tomorrow.');
+      if (isAxiosError(error) && error.response) {
+        if (error.response.status === 429) {
+          toast.error(error.response.data?.detail || 'You have exceeded the daily limit for posting jobs. Please try again tomorrow.');
+        } else if (error.response.status === 503) {
+          toast.error(error.response.data?.detail || 'The job posting limit has been reached. New jobs cannot be added at this time.');
+        } else if (error.response.data?.detail) {
+          // Handle other backend errors that provide a 'detail' message
+          const message = typeof error.response.data.detail === 'string' 
+            ? error.response.data.detail
+            : 'Failed to post job. Please check your input and try again.';
+          toast.error(message);
+        } else {
+          toast.error('Failed to post job. An unexpected error occurred.');
+        }
       } else {
-        toast.error('Failed to post job. Please try again.');
+        toast.error('Failed to post job. Please check your network connection and try again.');
       }
       console.error('Error posting job:', error);
     }
